@@ -61,19 +61,17 @@ static float celsius_to_fahrenheit(float temperature) {
 }
 
 
-#define INTRO_LOGO "Tomofarm"
+#define INTRO_LOGO "farm"
 #define GATEWAY_VERSION "LH20231213"
 
 #define API_SERVER "api.thingspeak.com"
 
 
-// Tomofarm office Hanoi Wifi:
-//#define WIFI_SSID "TOMOFARM SHOP"
-//#define WIFI_PASSWORD "17072020"
 
-// Leon's office in Holland:
-//#define WIFI_SSID "Schans"
-//#define WIFI_PASSWORD "0523657007"
+// WIFI_SSID / WIFI_PASSWORD are supplied at configure time, e.g.:
+//   cmake -DWIFI_SSID="..." -DWIFI_PASSWORD="..." ..
+// (or via CMakeUserPresets.json, which is gitignored) -- see CMakeLists.txt.
+
 
 // Yen Bai
 #define SENSOR_API0 "L3UFA4X5LUNR6OLY"
@@ -81,19 +79,6 @@ static float celsius_to_fahrenheit(float temperature) {
 #define SENSOR_API2 "O6KG3WQT8FSL0T31"
 #define SENSOR_API3 "LVCC3CP113ZY85NC"
 #define FARM_NAME  "Yen Bai"
-// Yen Bai WiFi:
-#define WIFI_SSID "Tomofarm 1"
-#define WIFI_PASSWORD "17072020"
-
-//// Mang Den:
-//#define SENSOR_API0 "L3UFA4X5LUNR6OLY"
-//#define SENSOR_API1 "TXC58K2GWXEJ2K10"
-//#define SENSOR_API2 "O6KG3WQT8FSL0T31"
-//#define SENSOR_API3 "LVCC3CP113ZY85NC"
-//#define FARM_NAME  "Yen Bai"
-//// Mang Den WiFi:
-//#define WIFI_SSID "HUAWEI-B311-46C9"
-//#define WIFI_PASSWORD "40NL54R9T2H"
 
 
 #define SENSOR_INTERVAL_TIME (60*2*1000)

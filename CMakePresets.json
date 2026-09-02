@@ -1,0 +1,20 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "Pico W gateway (bundled toolchain)",
+      "description": "Pins the pico-sdk location, its bundled arm-none-eabi toolchain (the system one may lack a C++ front end), and the pico_w board so pins/defaults match the actual hardware.",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "PICO_SDK_PATH": "$env{HOME}/pico/pico-sdk",
+        "PICO_TOOLCHAIN_PATH": "$env{HOME}/pico/pico-sdk/toolchain/gcc-arm-none-eabi-10.3-2021.10/bin",
+        "PICO_BOARD": "pico_w",
+        "WIFI_SSID": "",
+        "WIFI_PASSWORD": ""
+      }
+    }
+  ]
+}
