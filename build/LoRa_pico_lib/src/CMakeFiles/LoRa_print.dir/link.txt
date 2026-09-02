@@ -1,0 +1,2 @@
+/home/leon/pico/pico-sdk/toolchain/gcc-arm-none-eabi-10.3-2021.10/bin/arm-none-eabi-ar qc libLoRa_print.a CMakeFiles/LoRa_print.dir/Print.cpp.obj
+/home/leon/pico/pico-sdk/toolchain/gcc-arm-none-eabi-10.3-2021.10/bin/arm-none-eabi-ranlib libLoRa_print.a
