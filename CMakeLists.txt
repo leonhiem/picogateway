@@ -47,6 +47,7 @@ pico_add_extra_outputs(gateway)
 # target, not linked into `gateway` yet, so gateway.cpp stays untouched.
 add_library(picogateway_kernel
         kernel/task.cpp
+        kernel/klog.cpp
         )
 target_include_directories(picogateway_kernel PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(picogateway_kernel pico_stdlib)
@@ -60,6 +61,16 @@ target_link_libraries(demo_sched picogateway_kernel pico_stdlib)
 pico_enable_stdio_usb(demo_sched 1)
 pico_enable_stdio_uart(demo_sched 0)
 pico_add_extra_outputs(demo_sched)
+
+# demo_klog: step 2 -- proves serialized cross-task logging (klog/klog_flush)
+# before any gateway task starts relying on it.
+add_executable(demo_klog
+        demo_klog.cpp
+        )
+target_link_libraries(demo_klog picogateway_kernel pico_stdlib)
+pico_enable_stdio_usb(demo_klog 1)
+pico_enable_stdio_uart(demo_klog 0)
+pico_add_extra_outputs(demo_klog)
 
 add_compile_options(-Wall
         -Wno-format          # int != int32_t as far as the compiler is concerned because gcc has int32_t as long int
