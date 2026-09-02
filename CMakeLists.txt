@@ -49,6 +49,7 @@ add_library(picogateway_kernel
         kernel/task.cpp
         kernel/klog.cpp
         kernel/fs.cpp
+        kernel/prog.cpp
         )
 target_include_directories(picogateway_kernel PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(picogateway_kernel pico_stdlib)
@@ -86,6 +87,24 @@ target_link_libraries(demo_fs picogateway_kernel pico_stdlib hardware_gpio)
 pico_enable_stdio_usb(demo_fs 1)
 pico_enable_stdio_uart(demo_fs 0)
 pico_add_extra_outputs(demo_fs)
+
+# demo_shell: step 4 -- the interactive shell (jobs.{h,cpp}, shell.cpp,
+# kernel/prog.h + cat/echo/ls), pipes/redirects/background jobs on top of
+# the real /dev/buttons from step 3. First step you can actually type at.
+add_executable(demo_shell
+        demo_shell.cpp
+        buttons.cpp
+        dev/buttons.cpp
+        jobs.cpp
+        shell.cpp
+        prog/cat.cpp
+        prog/echo.cpp
+        prog/ls.cpp
+        )
+target_link_libraries(demo_shell picogateway_kernel pico_stdlib hardware_gpio)
+pico_enable_stdio_usb(demo_shell 1)
+pico_enable_stdio_uart(demo_shell 0)
+pico_add_extra_outputs(demo_shell)
 
 add_compile_options(-Wall
         -Wno-format          # int != int32_t as far as the compiler is concerned because gcc has int32_t as long int
