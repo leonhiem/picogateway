@@ -41,6 +41,26 @@ pico_enable_stdio_usb(gateway 1)
 
 pico_add_extra_outputs(gateway)
 
+# picogateway_kernel: the reusable multitasking core, vendored verbatim from
+# ../picoos/kernel/task.{h,cpp} -- see the picoos-style-migration-goal memory
+# note / README for the plan this is step 1 of. Kept as its own library
+# target, not linked into `gateway` yet, so gateway.cpp stays untouched.
+add_library(picogateway_kernel
+        kernel/task.cpp
+        )
+target_include_directories(picogateway_kernel PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(picogateway_kernel pico_stdlib)
+
+# demo_sched: step 1 -- two tasks, no gateway hardware touched, proving the
+# scheduler out on this board before any subsystem is migrated onto it.
+add_executable(demo_sched
+        demo_sched.cpp
+        )
+target_link_libraries(demo_sched picogateway_kernel pico_stdlib)
+pico_enable_stdio_usb(demo_sched 1)
+pico_enable_stdio_uart(demo_sched 0)
+pico_add_extra_outputs(demo_sched)
+
 add_compile_options(-Wall
         -Wno-format          # int != int32_t as far as the compiler is concerned because gcc has int32_t as long int
         -Wno-unused-function # we have some for the docs that aren't called
