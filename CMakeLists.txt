@@ -48,6 +48,7 @@ pico_add_extra_outputs(gateway)
 add_library(picogateway_kernel
         kernel/task.cpp
         kernel/klog.cpp
+        kernel/fs.cpp
         )
 target_include_directories(picogateway_kernel PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(picogateway_kernel pico_stdlib)
@@ -71,6 +72,20 @@ target_link_libraries(demo_klog picogateway_kernel pico_stdlib)
 pico_enable_stdio_usb(demo_klog 1)
 pico_enable_stdio_uart(demo_klog 0)
 pico_add_extra_outputs(demo_klog)
+
+# demo_fs: step 3 -- the device namespace (kernel/fs.h), pointed at a real
+# device for the first time: /dev/buttons, backed by the actual button
+# GPIOs + debounce timer carved out of gateway.cpp into buttons.cpp. First
+# real gateway subsystem to move onto the new architecture.
+add_executable(demo_fs
+        demo_fs.cpp
+        buttons.cpp
+        dev/buttons.cpp
+        )
+target_link_libraries(demo_fs picogateway_kernel pico_stdlib hardware_gpio)
+pico_enable_stdio_usb(demo_fs 1)
+pico_enable_stdio_uart(demo_fs 0)
+pico_add_extra_outputs(demo_fs)
 
 add_compile_options(-Wall
         -Wno-format          # int != int32_t as far as the compiler is concerned because gcc has int32_t as long int
