@@ -106,6 +106,27 @@ pico_enable_stdio_usb(demo_shell 1)
 pico_enable_stdio_uart(demo_shell 0)
 pico_add_extra_outputs(demo_shell)
 
+# demo_room: step 5 -- room sensors (DHT22 temp+hum, light ADC) carved
+# out of gateway.cpp into room.cpp, exposed as /dev/room/temp,
+# /dev/room/hum, /dev/room/light (dev/room.cpp), polled periodically by
+# a real kernel/task.h task instead of gateway.cpp's hand-rolled
+# SENSOR_INTERVAL_TIME gate. Shell + cat/echo/ls again so the cached
+# readings can be inspected interactively.
+add_executable(demo_room
+        demo_room.cpp
+        room.cpp
+        dev/room.cpp
+        jobs.cpp
+        shell.cpp
+        prog/cat.cpp
+        prog/echo.cpp
+        prog/ls.cpp
+        )
+target_link_libraries(demo_room picogateway_kernel pico_stdlib hardware_adc dht)
+pico_enable_stdio_usb(demo_room 1)
+pico_enable_stdio_uart(demo_room 0)
+pico_add_extra_outputs(demo_room)
+
 add_compile_options(-Wall
         -Wno-format          # int != int32_t as far as the compiler is concerned because gcc has int32_t as long int
         -Wno-unused-function # we have some for the docs that aren't called
