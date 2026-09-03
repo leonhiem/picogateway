@@ -127,6 +127,27 @@ pico_enable_stdio_usb(demo_room 1)
 pico_enable_stdio_uart(demo_room 0)
 pico_add_extra_outputs(demo_room)
 
+# demo_config: step 6 -- the config EEPROM (24CS16) carved out of
+# gateway.cpp into eeprom.cpp, exposed read/write as
+# /dev/config/{wifi_ssid,wifi_pass,url,farm,api0..api3} (dev/config.cpp),
+# with write-verify + read-validate corruption checks gateway.cpp never
+# had. Shell + cat/echo/ls again so fields can be read and set
+# interactively.
+add_executable(demo_config
+        demo_config.cpp
+        eeprom.cpp
+        dev/config.cpp
+        jobs.cpp
+        shell.cpp
+        prog/cat.cpp
+        prog/echo.cpp
+        prog/ls.cpp
+        )
+target_link_libraries(demo_config picogateway_kernel pico_stdlib hardware_i2c hardware_gpio)
+pico_enable_stdio_usb(demo_config 1)
+pico_enable_stdio_uart(demo_config 0)
+pico_add_extra_outputs(demo_config)
+
 add_compile_options(-Wall
         -Wno-format          # int != int32_t as far as the compiler is concerned because gcc has int32_t as long int
         -Wno-unused-function # we have some for the docs that aren't called
