@@ -148,6 +148,27 @@ pico_enable_stdio_usb(demo_config 1)
 pico_enable_stdio_uart(demo_config 0)
 pico_add_extra_outputs(demo_config)
 
+# demo_lora: step 7 -- the LoRa field probes (lora.cpp, carved out of
+# gateway.cpp's LoRa.begin()/parsePacket() loop), exposed read-only as
+# /dev/lora/probe{1,2,3}/{temp,soil,ph,rssi,age} (dev/lora.cpp). First
+# subsystem with no picoos precedent to lean on. Shell + cat/echo/ls
+# again so cached readings can be inspected interactively.
+add_executable(demo_lora
+        demo_lora.cpp
+        lora.cpp
+        dev/lora.cpp
+        jobs.cpp
+        shell.cpp
+        prog/cat.cpp
+        prog/echo.cpp
+        prog/ls.cpp
+        )
+target_include_directories(demo_lora PRIVATE ../LoRa-pi-pico/src)
+target_link_libraries(demo_lora picogateway_kernel pico_stdlib LoRa_pico_lib hardware_spi hardware_interp LoRa_print)
+pico_enable_stdio_usb(demo_lora 1)
+pico_enable_stdio_uart(demo_lora 0)
+pico_add_extra_outputs(demo_lora)
+
 add_compile_options(-Wall
         -Wno-format          # int != int32_t as far as the compiler is concerned because gcc has int32_t as long int
         -Wno-unused-function # we have some for the docs that aren't called
