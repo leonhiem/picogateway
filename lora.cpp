@@ -42,11 +42,19 @@ volatile float    probe_ph[LORA_PROBE_COUNT];
 volatile int      probe_rssi[LORA_PROBE_COUNT];
 volatile uint32_t probe_last_seen_ms[LORA_PROBE_COUNT];
 
+// False until lora_init() has actually brought the radio up -- lets
+// task_poll_lora() be registered unconditionally at boot (gateway.cpp
+// step 9) while radio bring-up itself stays deferred to bin/lora
+// (step 10), without task_poll_lora() touching an uninitialized SPI
+// bus in the meantime.
+static volatile bool radio_ready = false;
+
 void lora_init(void)
 {
     while (!LoRa.begin(868E6)) {
         sleep_ms(3000);
     }
+    radio_ready = true;
 }
 
 static const char *find_field(const char *hay, const char *key)
@@ -98,6 +106,8 @@ static void handle_packet(const char *buf)
 
 void task_poll_lora(void)
 {
+    if (!radio_ready) return; // lora_init() hasn't run yet -- see bin/lora, step 10
+
     int packetSize = LoRa.parsePacket();
     if (!packetSize) return;
 

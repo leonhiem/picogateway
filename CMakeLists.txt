@@ -14,37 +14,10 @@ pico_sdk_init()
 
 add_subdirectory("../LoRa-pi-pico" LoRa_pico_lib)
 add_subdirectory("../pico_dht" dht)
-add_executable(gateway
-        ssd1306.cpp
-        gateway.cpp
-        )
-target_compile_definitions(gateway PRIVATE
-        WIFI_SSID=\"${WIFI_SSID}\"
-        WIFI_PASSWORD=\"${WIFI_PASSWORD}\"
-        )
-target_include_directories(gateway PRIVATE
-        ${CMAKE_CURRENT_LIST_DIR}
-        ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts
-	../LoRa-pi-pico/src
-  ../
-        )
-
-
-target_link_libraries(gateway
-        pico_cyw43_arch_lwip_threadsafe_background
-        pico_stdlib
-        )
-target_link_libraries(gateway pico_stdlib LoRa_pico_lib hardware_spi hardware_interp LoRa_print hardware_adc hardware_gpio dht hardware_i2c)
-
-pico_enable_stdio_uart(gateway 1)
-pico_enable_stdio_usb(gateway 1)
-
-pico_add_extra_outputs(gateway)
 
 # picogateway_kernel: the reusable multitasking core, vendored verbatim from
 # ../picoos/kernel/task.{h,cpp} -- see the picoos-style-migration-goal memory
-# note / README for the plan this is step 1 of. Kept as its own library
-# target, not linked into `gateway` yet, so gateway.cpp stays untouched.
+# note / README for the plan this is step 1 of.
 add_library(picogateway_kernel
         kernel/task.cpp
         kernel/klog.cpp
@@ -168,6 +141,57 @@ target_link_libraries(demo_lora picogateway_kernel pico_stdlib LoRa_pico_lib har
 pico_enable_stdio_usb(demo_lora 1)
 pico_enable_stdio_uart(demo_lora 0)
 pico_add_extra_outputs(demo_lora)
+
+# gateway: the real firmware. Step 9 -- gateway.cpp's own main() now runs
+# on picogateway_kernel: buttons, room sensors, and the config EEPROM come
+# up unconditionally at boot (same modules as demo_fs/demo_room/demo_config
+# above), plus the shell and LoRa's poll task (registered but idle -- see
+# lora.cpp's radio_ready flag and gateway.cpp's own header comment). Wifi
+# (pico_cyw43_arch_lwip_threadsafe_background) and ssd1306.cpp (the OLED
+# display) are dropped from this target for now -- gateway.cpp doesn't
+# reference either any more; both come back in later steps (bin/wifi,
+# bin/lora, then the display) instead of being linked in unused.
+add_executable(gateway
+        gateway.cpp
+        buttons.cpp
+        dev/buttons.cpp
+        room.cpp
+        dev/room.cpp
+        eeprom.cpp
+        dev/config.cpp
+        lora.cpp
+        dev/lora.cpp
+        jobs.cpp
+        shell.cpp
+        prog/cat.cpp
+        prog/echo.cpp
+        prog/ls.cpp
+        )
+target_compile_definitions(gateway PRIVATE
+        WIFI_SSID=\"${WIFI_SSID}\"
+        WIFI_PASSWORD=\"${WIFI_PASSWORD}\"
+        )
+target_include_directories(gateway PRIVATE
+        ${CMAKE_CURRENT_LIST_DIR}
+        ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts
+        ../LoRa-pi-pico/src
+        ../
+        )
+target_link_libraries(gateway
+        picogateway_kernel
+        pico_stdlib
+        LoRa_pico_lib
+        hardware_spi
+        hardware_interp
+        LoRa_print
+        hardware_adc
+        hardware_gpio
+        hardware_i2c
+        dht
+        )
+pico_enable_stdio_uart(gateway 1)
+pico_enable_stdio_usb(gateway 1)
+pico_add_extra_outputs(gateway)
 
 add_compile_options(-Wall
         -Wno-format          # int != int32_t as far as the compiler is concerned because gcc has int32_t as long int

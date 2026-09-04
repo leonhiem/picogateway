@@ -51,7 +51,10 @@ void lora_init(void);
 // kernel/task.h -- parsePacket() is a quick register read, not a
 // blocking wait, so a short period costs little. On a malformed
 // packet (bad length, wrong format), re-runs LoRa.begin() the same
-// way gateway.cpp's own recovery path does -- see lora.cpp.
+// way gateway.cpp's own recovery path does -- see lora.cpp. Safe to
+// register unconditionally at boot even before lora_init() has ever
+// run: it no-ops until the radio is actually up (lora.cpp's internal
+// radio_ready flag) -- see gateway.cpp step 9 / bin/lora step 10.
 void task_poll_lora(void);
 
 // dev/lora.cpp -- registers /dev/lora/probe<1..3>/{temp,soil,ph,rssi,age,seen}.
