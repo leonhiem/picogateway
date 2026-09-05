@@ -42,19 +42,38 @@ extern volatile int   probe_rssi[LORA_PROBE_COUNT];
 extern volatile uint32_t probe_last_seen_ms[LORA_PROBE_COUNT]; // to_ms_since_boot() at last packet
 
 // Starts the radio (LoRa.begin(), retried until it succeeds -- same
-// open-ended retry gateway.cpp does at boot, since without a radio
-// there's nothing else useful this subsystem can do).
+// open-ended retry gateway.cpp used to do at boot). Blocking: only
+// safe to call from a plain main() before the task loop starts (see
+// demo_lora.cpp). The real gateway firmware never calls this -- see
+// lora_try_start() below, which is what bin/lora (prog/lora.cpp) uses.
 void lora_init(void);
+
+// Non-blocking: attempts LoRa.begin() at most once every few seconds,
+// otherwise just reports whether the radio is already up without
+// touching it. Returns true once the radio is ready (immediately, on
+// every call after the first success). This is what actually starts
+// the radio in the real gateway firmware -- called from bin/lora
+// (prog/lora.cpp), backgrounded from the boot script, instead of
+// gateway.cpp's old blocking startup call.
+bool lora_try_start(void);
+
+// True once the radio is up -- lora_try_start() succeeded and
+// task_poll_lora() hasn't since marked it down again. This is what
+// /dev/lora/status (dev/lora.cpp) reports: `jobs` only shows the lora
+// job exists and is being scheduled, not whether the radio itself is
+// actually running -- this is the answer to that question.
+bool lora_is_ready(void);
 
 // Polls LoRa.parsePacket()/available() and, on a complete packet,
 // parses and caches it. Run this often (e.g. every 50ms) from
 // kernel/task.h -- parsePacket() is a quick register read, not a
 // blocking wait, so a short period costs little. On a malformed
-// packet (bad length, wrong format), re-runs LoRa.begin() the same
-// way gateway.cpp's own recovery path does -- see lora.cpp. Safe to
-// register unconditionally at boot even before lora_init() has ever
-// run: it no-ops until the radio is actually up (lora.cpp's internal
-// radio_ready flag) -- see gateway.cpp step 9 / bin/lora step 10.
+// packet (bad length, wrong format), marks the radio down
+// (radio_ready = false in lora.cpp) instead of blocking here to fix
+// it -- bin/lora's background job (lora_try_start()) notices on its
+// own next tick and restarts it. Safe to register unconditionally at
+// boot even before the radio's ever been started: it no-ops until
+// radio_ready is true -- see gateway.cpp step 9 / bin/lora step 10.
 void task_poll_lora(void);
 
 // dev/lora.cpp -- registers /dev/lora/probe<1..3>/{temp,soil,ph,rssi,age,seen}.

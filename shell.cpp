@@ -60,11 +60,10 @@
 
 #define SCRIPT_MAX       4
 #define SCRIPT_NAME_MAX  16
-#define SCRIPT_TEXT_MAX  512 // room to grow once bin/lora, bin/wifi exist
-                              // and BOOT_SCRIPT_TEXT actually starts them
-                              // (steps 10/11) -- picoos needed 1024 for a
-                              // much bigger boot recipe; bump this the
-                              // same way if/when it gets close.
+#define SCRIPT_TEXT_MAX  512 // BOOT_SCRIPT_TEXT ("lora &\nwifi &\n") barely
+                              // dents this -- picoos needed 1024 for a much
+                              // bigger boot recipe; bump this the same way
+                              // if/when it gets close.
 
 typedef struct {
     bool used;
@@ -72,15 +71,20 @@ typedef struct {
     char text[SCRIPT_TEXT_MAX]; // lines joined by '\n', nul-terminated
 } script_t;
 
-// Empty for now -- nothing needs starting yet at this step (buttons,
-// room sensors, and config are registered unconditionally in main(),
-// not through here; see the file header). Steps 10/11 add
-// "lora &\n" / "wifi &\n" style lines once those bin/ programs exist,
-// making LoRa/wifi bring-up start unattended at boot while staying
-// killable/restartable through the normal job table -- the whole
-// point of routing them through a script instead of main() calling
-// their init functions directly.
-#define BOOT_SCRIPT_TEXT ""
+// Buttons, room sensors, and config are registered unconditionally in
+// main() (not through here -- see gateway.cpp's own header comment);
+// nothing needed starting here until bin/lora existed. Step 10 added
+// "lora &": LoRa.begin() is rate-limited and non-blocking now
+// (lora.cpp's lora_try_start()), so backgrounding it here just means
+// the radio comes up in the background instead of gateway.cpp's old
+// blocking startup call -- and if it ever gets marked down
+// (task_poll_lora's auto-repair), this same job notices and restarts
+// it, since it keeps getting re-invoked every JOB_POLL_MS forever.
+// Step 11 adds "wifi &" the same way: wifi_try_connect() (wifi.cpp) is
+// just as non-blocking/rate-limited, and a dropped link is exactly the
+// same "goes back to down, this job's next tick retries" story as
+// bin/lora's radio_ready.
+#define BOOT_SCRIPT_TEXT "lora &\nwifi &\n"
 
 static script_t scripts[SCRIPT_MAX] = {
     { true, "boot", BOOT_SCRIPT_TEXT },

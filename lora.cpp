@@ -42,19 +42,52 @@ volatile float    probe_ph[LORA_PROBE_COUNT];
 volatile int      probe_rssi[LORA_PROBE_COUNT];
 volatile uint32_t probe_last_seen_ms[LORA_PROBE_COUNT];
 
-// False until lora_init() has actually brought the radio up -- lets
-// task_poll_lora() be registered unconditionally at boot (gateway.cpp
-// step 9) while radio bring-up itself stays deferred to bin/lora
-// (step 10), without task_poll_lora() touching an uninitialized SPI
-// bus in the meantime.
+// False until the radio has actually come up -- lets task_poll_lora()
+// be registered unconditionally at boot (gateway.cpp step 9) while
+// radio bring-up itself stays deferred to bin/lora (step 10), without
+// task_poll_lora() touching an uninitialized SPI bus in the meantime.
 static volatile bool radio_ready = false;
 
+// Rate limit for lora_try_start()'s real attempts -- see there.
+#define LORA_RETRY_MS 3000
+static uint32_t last_attempt_ms = 0;
+
+static bool try_once(void)
+{
+    if (LoRa.begin(868E6)) {
+        radio_ready = true;
+    }
+    return radio_ready;
+}
+
+// Old blocking entry point -- kept only for demo_lora.cpp, which calls
+// this once at boot before its task loop starts (nothing else is
+// running yet, so blocking there costs nothing). The real gateway
+// firmware never calls this -- see lora_try_start() below.
 void lora_init(void)
 {
-    while (!LoRa.begin(868E6)) {
+    while (!try_once()) {
         sleep_ms(3000);
     }
-    radio_ready = true;
+}
+
+// Non-blocking: attempts LoRa.begin() at most once every LORA_RETRY_MS,
+// otherwise just reports current status without touching the radio.
+// Safe to call every tick from a background job (prog/lora.cpp) --
+// once up, this is just an idle bool check; while down, extra calls
+// between retries are free no-ops instead of extra attempts.
+bool lora_try_start(void)
+{
+    if (radio_ready) return true;
+    uint32_t now = to_ms_since_boot(get_absolute_time());
+    if (last_attempt_ms != 0 && now - last_attempt_ms < LORA_RETRY_MS) return false;
+    last_attempt_ms = now;
+    return try_once();
+}
+
+bool lora_is_ready(void)
+{
+    return radio_ready;
 }
 
 static const char *find_field(const char *hay, const char *key)
@@ -112,8 +145,12 @@ void task_poll_lora(void)
     if (!packetSize) return;
 
     if (packetSize > LORA_MAX_PACKET) {
-        klog("lora", "packet len=%d implausible, restarting radio", packetSize);
-        while (!LoRa.begin(868E6)) sleep_ms(3000);
+        klog("lora", "packet len=%d implausible, marking radio down for restart", packetSize);
+        radio_ready = false; // prog/lora.cpp's background job notices next
+                              // tick and calls lora_try_start() again --
+                              // no blocking retry loop here any more (that
+                              // used to freeze the whole cooperative
+                              // scheduler until the radio came back)
         return;
     }
 

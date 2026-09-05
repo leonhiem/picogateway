@@ -146,11 +146,18 @@ pico_add_extra_outputs(demo_lora)
 # on picogateway_kernel: buttons, room sensors, and the config EEPROM come
 # up unconditionally at boot (same modules as demo_fs/demo_room/demo_config
 # above), plus the shell and LoRa's poll task (registered but idle -- see
-# lora.cpp's radio_ready flag and gateway.cpp's own header comment). Wifi
-# (pico_cyw43_arch_lwip_threadsafe_background) and ssd1306.cpp (the OLED
-# display) are dropped from this target for now -- gateway.cpp doesn't
-# reference either any more; both come back in later steps (bin/wifi,
-# bin/lora, then the display) instead of being linked in unused.
+# lora.cpp's radio_ready flag and gateway.cpp's own header comment). Step
+# 10 adds prog/lora.cpp (bin/lora): the boot script (shell.cpp's
+# BOOT_SCRIPT_TEXT) runs it backgrounded ("lora &"), bringing the radio up
+# without a blocking call in main(). Step 11 adds wifi.cpp/dev/wifi.cpp/
+# prog/wifi.cpp (bin/wifi, boot-scripted "wifi &") the same way, so
+# pico_cyw43_arch_lwip_threadsafe_background is back.
+# Credentials come from /dev/config/wifi_ssid /wifi_pass (EEPROM, step 6)
+# now, not a compiled-in WIFI_SSID/WIFI_PASSWORD -- the old
+# target_compile_definitions() for those is gone; nothing reads them any
+# more. ssd1306.cpp (the OLED display) is still dropped from this target --
+# gateway.cpp doesn't reference it -- it comes back in a later step instead
+# of being linked in unused.
 add_executable(gateway
         gateway.cpp
         buttons.cpp
@@ -161,15 +168,15 @@ add_executable(gateway
         dev/config.cpp
         lora.cpp
         dev/lora.cpp
+        wifi.cpp
+        dev/wifi.cpp
         jobs.cpp
         shell.cpp
         prog/cat.cpp
         prog/echo.cpp
         prog/ls.cpp
-        )
-target_compile_definitions(gateway PRIVATE
-        WIFI_SSID=\"${WIFI_SSID}\"
-        WIFI_PASSWORD=\"${WIFI_PASSWORD}\"
+        prog/lora.cpp
+        prog/wifi.cpp
         )
 target_include_directories(gateway PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
@@ -180,6 +187,7 @@ target_include_directories(gateway PRIVATE
 target_link_libraries(gateway
         picogateway_kernel
         pico_stdlib
+        pico_cyw43_arch_lwip_threadsafe_background
         LoRa_pico_lib
         hardware_spi
         hardware_interp

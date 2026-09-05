@@ -16,21 +16,35 @@
  * of it has external state to lose, so none of it needs to be
  * restartable -- it just comes up and stays up.
  *
- * LoRa's poll task is registered too, but stays idle: task_poll_lora()
- * no-ops until lora_init() has actually run (see lora.cpp's
- * radio_ready flag), and nothing here calls lora_init(). Starting the
- * radio -- and restarting it if the connection ever needs it -- is
- * bin/lora's job (step 10), run from the boot script (shell.cpp's
- * BOOT_SCRIPT_TEXT) so it's a normal, killable/re-runnable background
- * job instead of a blocking call sitting in main(). Wifi (step 11)
- * and the OLED display (later) follow the same pattern.
+ * LoRa's poll task is registered too, but stays idle at boot:
+ * task_poll_lora() no-ops until the radio's actually up (lora.cpp's
+ * radio_ready flag), and nothing in main() itself brings the radio up.
+ * That's bin/lora's job (step 10, prog/lora.cpp) -- started from the
+ * boot script (shell.cpp's BOOT_SCRIPT_TEXT: "lora &") as a normal,
+ * killable/re-runnable background job instead of a blocking call
+ * sitting in main(). If task_poll_lora() ever sees an implausible
+ * packet, it clears radio_ready instead of blocking to fix it in
+ * place; bin/lora's job notices and restarts the radio on its own next
+ * tick.
+ *
+ * Wifi (step 11, wifi.cpp/prog/wifi.cpp) follows the same pattern:
+ * nothing in main() brings the cyw43 chip up or connects it -- that's
+ * bin/wifi's job, also started from the boot script ("wifi &"). Unlike
+ * LoRa (this board is the one always-listening radio "master"), wifi
+ * is a client, and association is a real multi-second operation that
+ * can fail for reasons LoRa's SPI check never has to (bad password, AP
+ * out of range) -- so /dev/wifi/status (dev/wifi.cpp) reports one of
+ * three states, not two: down / connecting / up. A dropped link goes
+ * straight back to down and bin/wifi's own next tick starts retrying,
+ * same "no blocking retry loop, no separate watchdog needed for this"
+ * shape as bin/lora. The OLED display (later) follows the same
+ * pattern too.
  *
  * The watchdog gateway.cpp used to drive (8s timeout, fed from deep
- * inside the wifi/http loop) isn't re-enabled here on purpose -- it
- * existed mainly to recover from wifi/http hangs that no longer exist
- * in this file, and turning it on without anything feeding it from
- * the new architecture yet would just reboot the board every 8s.
- * Revisit once bin/wifi (step 11) exists.
+ * inside the wifi/http loop) still isn't re-enabled here on purpose --
+ * it existed mainly to recover from wifi/http hangs that no longer
+ * exist in this file (both subsystems now self-recover without one).
+ * Revisit once there's a ThingSpeak-upload job to actually feed it.
  */
 #include <pico/stdlib.h>
 #include <cstdio>
@@ -44,10 +58,13 @@
 #include "room.h"
 #include "eeprom.h"
 #include "lora.h"
+#include "wifi.h"
 
 extern void cat_register(void);
 extern void echo_register(void);
 extern void ls_register(void);
+extern void lora_register(void);
+extern void wifi_register(void);
 extern void task_shell(void);
 
 static void task_console(void)
@@ -79,10 +96,13 @@ int main()
     room_devices_register();
     config_register();
     lora_devices_register(); // reads as 0.0/never-seen until bin/lora (step 10) starts the radio
+    wifi_devices_register(); // /dev/wifi/status reads "down" until bin/wifi (step 11) connects
 
     cat_register();
     echo_register();
     ls_register();
+    lora_register(); // bin/lora -- see shell.cpp's boot script, which runs "lora &"
+    wifi_register(); // bin/wifi -- see shell.cpp's boot script, which runs "wifi &"
 
     jobs_init();
     task_register("shell",     task_shell,     30);    // 30ms: responsive to typing

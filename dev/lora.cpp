@@ -12,6 +12,12 @@
  * convention as /dev/buttons/<name>. age reads -1 in that same
  * "nothing yet" case, since 0 there would misleadingly look like "a
  * packet just arrived".
+ *
+ * /dev/lora/status (step 10) is a different kind of reading: not a
+ * per-probe cache, but whether the radio itself is up right now --
+ * "up\n"/"down\n", straight from lora.cpp's lora_is_ready(). `jobs`
+ * shows bin/lora is scheduled; this is what answers "yes, but is it
+ * actually working" the way a Unix service status would.
  */
 #include "lora.h"
 #include "kernel/fs.h"
@@ -50,6 +56,11 @@ static int seen_read(int idx, char *buf, int len)
     return snprintf(buf, len, probe_seen[idx] ? "1\n" : "0\n");
 }
 
+static int status_read(char *buf, int len)
+{
+    return snprintf(buf, len, lora_is_ready() ? "up\n" : "down\n");
+}
+
 // device_t's read() takes no context param, so one small wrapper per
 // probe x field -- same shape as dev/buttons.cpp's up_read/down_read/...
 // and dev/config.cpp's CONFIG_DEVICE macro.
@@ -65,7 +76,9 @@ LORA_DEVICE(0)
 LORA_DEVICE(1)
 LORA_DEVICE(2)
 
-static const device_t devs[LORA_PROBE_COUNT * 6] = {
+static const device_t devs[LORA_PROBE_COUNT * 6 + 1] = {
+    {"/dev/lora/status",      0, 0, status_read,      0},
+
     {"/dev/lora/probe1/temp", 0, 0, probe0_temp_read, 0},
     {"/dev/lora/probe1/soil", 0, 0, probe0_soil_read, 0},
     {"/dev/lora/probe1/ph",   0, 0, probe0_ph_read,   0},
@@ -90,5 +103,5 @@ static const device_t devs[LORA_PROBE_COUNT * 6] = {
 
 void lora_devices_register(void)
 {
-    for (unsigned i = 0; i < LORA_PROBE_COUNT * 6; i++) fs_register(&devs[i]);
+    for (unsigned i = 0; i < LORA_PROBE_COUNT * 6 + 1; i++) fs_register(&devs[i]);
 }
