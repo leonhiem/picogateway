@@ -40,6 +40,17 @@
  * shape as bin/lora. The OLED display (later) follows the same
  * pattern too.
  *
+ * Step 12 (display.cpp/prog/display.cpp) follows the same pattern again:
+ * nothing in main() touches the OLED's I2C bus -- that's bin/display's
+ * job ("display &"). task_display() is registered unconditionally like
+ * task_poll_lora/wifi, and no-ops until display_try_start() has actually
+ * succeeded (display.cpp's own ready flag). The old animation()/
+ * animation_wifi() menu code is gone from here the same way the old
+ * wifi/http code was in step 9 -- rebuilt on /dev/room, /dev/lora,
+ * /dev/wifi, /dev/config instead of a hand-rolled apis[4][22] array (see
+ * display.cpp's own header comment for how that retires the apis[-1]
+ * bug by construction, not just by coincidence).
+ *
  * The watchdog gateway.cpp used to drive (8s timeout, fed from deep
  * inside the wifi/http loop) still isn't re-enabled here on purpose --
  * it existed mainly to recover from wifi/http hangs that no longer
@@ -59,12 +70,14 @@
 #include "eeprom.h"
 #include "lora.h"
 #include "wifi.h"
+#include "display.h"
 
 extern void cat_register(void);
 extern void echo_register(void);
 extern void ls_register(void);
 extern void lora_register(void);
 extern void wifi_register(void);
+extern void display_register(void);
 extern void task_shell(void);
 
 static void task_console(void)
@@ -97,17 +110,20 @@ int main()
     config_register();
     lora_devices_register(); // reads as 0.0/never-seen until bin/lora (step 10) starts the radio
     wifi_devices_register(); // /dev/wifi/status reads "down" until bin/wifi (step 11) connects
+    display_devices_register(); // /dev/display/status reads "down" until bin/display (step 12) starts it
 
     cat_register();
     echo_register();
     ls_register();
-    lora_register(); // bin/lora -- see shell.cpp's boot script, which runs "lora &"
-    wifi_register(); // bin/wifi -- see shell.cpp's boot script, which runs "wifi &"
+    lora_register();    // bin/lora -- see shell.cpp's boot script, which runs "lora &"
+    wifi_register();    // bin/wifi -- see shell.cpp's boot script, which runs "wifi &"
+    display_register(); // bin/display -- see shell.cpp's boot script, which runs "display &"
 
     jobs_init();
     task_register("shell",     task_shell,     30);    // 30ms: responsive to typing
     task_register("poll_room", task_poll_room, 10000);  // see room.h -- 10s for now
     task_register("poll_lora", task_poll_lora, 50);     // no-ops until the radio's started -- see lora.cpp
+    task_register("display",   task_display,   50);     // no-ops until the OLED's started -- see display.cpp; 50ms so button presses feel instant
     task_register("console",   task_console,   100);    // drains klog (config_write warnings, lora auto-repair)
 
     while (1) {

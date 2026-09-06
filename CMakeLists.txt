@@ -155,9 +155,12 @@ pico_add_extra_outputs(demo_lora)
 # Credentials come from /dev/config/wifi_ssid /wifi_pass (EEPROM, step 6)
 # now, not a compiled-in WIFI_SSID/WIFI_PASSWORD -- the old
 # target_compile_definitions() for those is gone; nothing reads them any
-# more. ssd1306.cpp (the OLED display) is still dropped from this target --
-# gateway.cpp doesn't reference it -- it comes back in a later step instead
-# of being linked in unused.
+# more. Step 12 brings ssd1306.cpp back (the OLED display) -- linked in
+# again for the first time since step 9 -- plus display.cpp/dev/display.cpp/
+# prog/display.cpp (bin/display, boot-scripted "display &"), same
+# non-blocking bring-up shape as lora/wifi. hardware_i2c is already linked
+# below (eeprom.cpp's bus); the display runs on the RP2040's other I2C
+# controller (i2c1), no new library needed.
 add_executable(gateway
         gateway.cpp
         buttons.cpp
@@ -170,6 +173,9 @@ add_executable(gateway
         dev/lora.cpp
         wifi.cpp
         dev/wifi.cpp
+        ssd1306.cpp
+        display.cpp
+        dev/display.cpp
         jobs.cpp
         shell.cpp
         prog/cat.cpp
@@ -177,6 +183,7 @@ add_executable(gateway
         prog/ls.cpp
         prog/lora.cpp
         prog/wifi.cpp
+        prog/display.cpp
         )
 target_include_directories(gateway PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}

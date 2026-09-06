@@ -60,10 +60,10 @@
 
 #define SCRIPT_MAX       4
 #define SCRIPT_NAME_MAX  16
-#define SCRIPT_TEXT_MAX  512 // BOOT_SCRIPT_TEXT ("lora &\nwifi &\n") barely
-                              // dents this -- picoos needed 1024 for a much
-                              // bigger boot recipe; bump this the same way
-                              // if/when it gets close.
+#define SCRIPT_TEXT_MAX  512 // BOOT_SCRIPT_TEXT ("lora &\nwifi &\ndisplay &\n")
+                              // barely dents this -- picoos needed 1024 for a
+                              // much bigger boot recipe; bump this the same
+                              // way if/when it gets close.
 
 typedef struct {
     bool used;
@@ -83,8 +83,10 @@ typedef struct {
 // Step 11 adds "wifi &" the same way: wifi_try_connect() (wifi.cpp) is
 // just as non-blocking/rate-limited, and a dropped link is exactly the
 // same "goes back to down, this job's next tick retries" story as
-// bin/lora's radio_ready.
-#define BOOT_SCRIPT_TEXT "lora &\nwifi &\n"
+// bin/lora's radio_ready. Step 12 adds "display &": display_try_start()
+// (display.cpp) is the same non-blocking, rate-limited shape again, and
+// nothing draws to the OLED before this line runs.
+#define BOOT_SCRIPT_TEXT "lora &\nwifi &\ndisplay &\n"
 
 static script_t scripts[SCRIPT_MAX] = {
     { true, "boot", BOOT_SCRIPT_TEXT },
