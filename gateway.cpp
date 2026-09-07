@@ -51,6 +51,14 @@
  * display.cpp's own header comment for how that retires the apis[-1]
  * bug by construction, not just by coincidence).
  *
+ * Step 13 finishes that promise: the OLED menu's Config branch
+ * (display.cpp) can now edit all 8 EEPROM fields (wifi_ssid, wifi_pass,
+ * url, farm, api0..3) too, each through fs_open/fs_read/fs_write on its
+ * /dev/config/* device rather than any array indexed by a menu constant
+ * -- no apis[4][22]-shaped buffer exists anywhere in this codebase any
+ * more, so there's no equivalent off-by-one left to have. Nothing here
+ * in gateway.cpp changed for step 13; it's entirely inside display.cpp.
+ *
  * The watchdog gateway.cpp used to drive (8s timeout, fed from deep
  * inside the wifi/http loop) still isn't re-enabled here on purpose --
  * it existed mainly to recover from wifi/http hangs that no longer
