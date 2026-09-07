@@ -59,11 +59,26 @@
  * more, so there's no equivalent off-by-one left to have. Nothing here
  * in gateway.cpp changed for step 13; it's entirely inside display.cpp.
  *
+ * Step 14 (thingspeak.cpp/dev/thingspeak.cpp) replaces the old
+ * run_tcp_client()/TCP_CLIENT_T entirely: the room sensors upload to
+ * ThingSpeak every 60s, one LoRa probe's cached values round-robin
+ * every 60s offset 30s from that, all through /dev/config/{url,api0..3}
+ * for the channel/keys and plain lwIP tcp_* / dns_gethostbyname()
+ * callbacks for the HTTP GET itself -- no blocking sleep_ms() loop, no
+ * heap-allocated per-request state, unlike the original. There's no
+ * bin/thingspeak: unlike lora/wifi/display, there's no hardware to
+ * bring up here, just a wifi-up check task_thingspeak() makes on its
+ * own every tick, so it's registered unconditionally like
+ * task_poll_room.
+ *
  * The watchdog gateway.cpp used to drive (8s timeout, fed from deep
- * inside the wifi/http loop) still isn't re-enabled here on purpose --
- * it existed mainly to recover from wifi/http hangs that no longer
- * exist in this file (both subsystems now self-recover without one).
- * Revisit once there's a ThingSpeak-upload job to actually feed it.
+ * inside the wifi/http loop) still isn't re-enabled here on purpose:
+ * that loop is exactly what step 14 replaced, and its replacement can't
+ * hang the scheduler the way the original could, so there's nothing left
+ * for a watchdog to recover this file *from*. thingspeak.cpp's own
+ * tcp_poll() backstop (a few seconds of silence fails the upload, not
+ * the board) is this architecture's equivalent -- the same "the thing
+ * that can get stuck heals itself" shape as bin/lora and bin/wifi.
  */
 #include <pico/stdlib.h>
 #include <cstdio>
@@ -79,6 +94,7 @@
 #include "lora.h"
 #include "wifi.h"
 #include "display.h"
+#include "thingspeak.h"
 
 extern void cat_register(void);
 extern void echo_register(void);
@@ -119,6 +135,7 @@ int main()
     lora_devices_register(); // reads as 0.0/never-seen until bin/lora (step 10) starts the radio
     wifi_devices_register(); // /dev/wifi/status reads "down" until bin/wifi (step 11) connects
     display_devices_register(); // /dev/display/status reads "down" until bin/display (step 12) starts it
+    thingspeak_devices_register(); // /dev/thingspeak/status reads "idle" until the first upload attempt (step 14)
 
     cat_register();
     echo_register();
@@ -128,11 +145,12 @@ int main()
     display_register(); // bin/display -- see shell.cpp's boot script, which runs "display &"
 
     jobs_init();
-    task_register("shell",     task_shell,     30);    // 30ms: responsive to typing
-    task_register("poll_room", task_poll_room, 10000);  // see room.h -- 10s for now
-    task_register("poll_lora", task_poll_lora, 50);     // no-ops until the radio's started -- see lora.cpp
-    task_register("display",   task_display,   50);     // no-ops until the OLED's started -- see display.cpp; 50ms so button presses feel instant
-    task_register("console",   task_console,   100);    // drains klog (config_write warnings, lora auto-repair)
+    task_register("shell",      task_shell,      30);    // 30ms: responsive to typing
+    task_register("poll_room",  task_poll_room,  10000);  // see room.h -- 10s for now
+    task_register("poll_lora",  task_poll_lora,  50);     // no-ops until the radio's started -- see lora.cpp
+    task_register("display",    task_display,    50);     // no-ops until the OLED's started -- see display.cpp; 50ms so button presses feel instant
+    task_register("thingspeak", task_thingspeak, 1000);   // no-ops until wifi's up -- see thingspeak.cpp; 1s is plenty, nothing here is user-facing
+    task_register("console",    task_console,    100);    // drains klog (config_write warnings, lora auto-repair)
 
     while (1) {
         task_run();

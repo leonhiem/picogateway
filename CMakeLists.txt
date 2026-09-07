@@ -160,7 +160,14 @@ pico_add_extra_outputs(demo_lora)
 # prog/display.cpp (bin/display, boot-scripted "display &"), same
 # non-blocking bring-up shape as lora/wifi. hardware_i2c is already linked
 # below (eeprom.cpp's bus); the display runs on the RP2040's other I2C
-# controller (i2c1), no new library needed.
+# controller (i2c1), no new library needed. Step 14 adds thingspeak.cpp/
+# dev/thingspeak.cpp: the ThingSpeak HTTP uploads, replacing the old
+# run_tcp_client()/TCP_CLIENT_T with lwIP's own async tcp_*/dns_gethostbyname()
+# callbacks instead of a blocking sleep_ms() loop. No prog/thingspeak.cpp/
+# boot-script entry -- there's no hardware to bring up, task_thingspeak()
+# is registered unconditionally like task_poll_room (see gateway.cpp's own
+# header comment). No new library either: lwip/tcp.h + lwip/dns.h come
+# from pico_cyw43_arch_lwip_threadsafe_background, already linked below.
 add_executable(gateway
         gateway.cpp
         buttons.cpp
@@ -176,6 +183,8 @@ add_executable(gateway
         ssd1306.cpp
         display.cpp
         dev/display.cpp
+        thingspeak.cpp
+        dev/thingspeak.cpp
         jobs.cpp
         shell.cpp
         prog/cat.cpp
