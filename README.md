@@ -319,3 +319,19 @@ Known trade-offs and deliberate non-fixes live in the source comments
 where they're relevant — e.g. `jobs.h`'s one shared `JOB_POLL_MS` for
 every background job, or `gateway.cpp`'s own note on exactly why the
 watchdog stays disabled.
+
+## License
+
+This project's own code is [MIT licensed](LICENSE). Everything it
+builds on is permissive too, so nothing here needs anything other than
+MIT:
+
+- `ssd1306.h`/`ssd1306.cpp` are vendored from David Schramm's
+  [pico-ssd1306](https://github.com/daschr/pico-ssd1306) (MIT) — the
+  original copyright notice is kept in both files.
+- [`LoRa-pi-pico`](https://github.com/akshayabali/LoRa-pi-pico) (MIT,
+  Akshaya Bali) and [`pico_dht`](https://github.com/vmilea/pico_dht)
+  (MIT) are sibling repos linked via `add_subdirectory()`, not copied
+  in — see [Building](#building).
+- The Raspberry Pi Pico SDK, lwIP, and the cyw43 wifi driver are all
+  BSD-3-Clause-licensed.
